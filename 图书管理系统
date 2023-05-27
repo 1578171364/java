@@ -1,0 +1,285 @@
+
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
+import javax.swing.table.*;
+import java.sql.*;
+
+//导入相关的类库
+import java.awt.*;
+import java.awt.event.*;
+import java.sql.*;
+import javax.swing.*;
+
+//定义一个图书管理系统类，继承JFrame类
+public class BookManager extends JFrame implements ActionListener {
+	public static void main(String[] args) {
+		new BookManager();
+	}
+
+	JPanel loginPanel, queryPanel;
+	JLabel userLabel, passwordLabel, typeLabel, bookNameLabel, ISBNLabel, publisherLabel, priceLabel;
+	JTextField userField, bookNameField, publisherField, priceField,ISBNField;
+	JPasswordField passwordField;
+	JComboBox<String> typeBox;
+	JButton loginButton, resetButton, queryButton, clearButton;
+	JTable table;
+	JScrollPane scrollPane;
+
+	Connection conn;
+	PreparedStatement pstmt;
+	ResultSet rs;
+
+	public BookManager() {
+
+		super("我的图书管理系统");
+		setSize(800, 600);
+
+		setLocationRelativeTo(null);
+
+		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+		setLayout(new BorderLayout());
+
+		loginPanel = new JPanel();
+		loginPanel.setLayout(new GridLayout(4, 2));
+		userLabel = new JLabel("userName：");
+		passwordLabel = new JLabel("passWord：");
+		typeLabel = new JLabel("userType：");
+		userField = new JTextField(20);
+		passwordField = new JPasswordField(20);
+		typeBox = new JComboBox<>(new String[] { "user", "admin" });
+		loginButton = new JButton("Login");
+		resetButton = new JButton("reset");
+
+		loginPanel.add(userLabel);
+		loginPanel.add(userField);
+		loginPanel.add(passwordLabel);
+		loginPanel.add(passwordField);
+		loginPanel.add(typeLabel);
+		loginPanel.add(typeBox);
+		loginPanel.add(loginButton);
+		loginPanel.add(resetButton);
+
+		queryPanel = new JPanel();
+		queryPanel.setLayout(new FlowLayout());
+		ISBNLabel = new JLabel("ISBN: ");
+		bookNameLabel = new JLabel("bookName：");
+		// authorLabel = new JLabel("：");
+		publisherLabel = new JLabel("publisher：");
+		priceLabel = new JLabel("price: ");
+		bookNameField = new JTextField(20);
+		// authorField = new JTextField(20);
+		priceField = new JTextField(20);
+		ISBNField = new JTextField(20);
+		publisherField = new JTextField(20);
+		queryButton = new JButton("search");
+		clearButton = new JButton("clear all");
+		table = new JTable();
+		scrollPane = new JScrollPane(table);
+
+		queryPanel.add(bookNameLabel);
+		queryPanel.add(bookNameField);
+		queryPanel.add(ISBNLabel);
+		queryPanel.add(ISBNField);
+		// queryPanel.add(authorField);
+		queryPanel.add(priceLabel);
+		queryPanel.add(priceField);
+		queryPanel.add(publisherLabel);
+		queryPanel.add(publisherField);
+		queryPanel.add(queryButton);
+		queryPanel.add(clearButton);
+
+		add(loginPanel, BorderLayout.NORTH);
+		add(queryPanel, BorderLayout.CENTER);
+		add(scrollPane, BorderLayout.SOUTH);
+
+		loginPanel.setVisible(true);
+		queryPanel.setVisible(false);
+		scrollPane.setVisible(false);
+
+		loginButton.addActionListener(this);
+		resetButton.addActionListener(this);
+		queryButton.addActionListener(this);
+		clearButton.addActionListener(this);
+
+		init();
+
+		setVisible(true);
+	}
+
+	public void init() {
+		try {
+
+			Class.forName("com.hxtt.sql.access.AccessDriver");
+
+			conn = DriverManager.getConnection("jdbc:Access:///D:\\abc\\bookManager.accdb");
+
+			System.out.println("ok");
+		} catch (Exception e) {
+
+			System.out.println(e.toString());
+
+			JOptionPane.showMessageDialog(this, "数据库连接失败!", "错误", JOptionPane.ERROR_MESSAGE);
+		}
+	}
+
+	public void actionPerformed(ActionEvent ae) {
+		Object source = ae.getSource();
+		// 判断事件源是哪个按钮
+		if (source == loginButton) {
+			// 调用登录验证的方法
+			loginCheck();
+		} else if (source == resetButton) {
+			// 调用重置输入框的方法
+			resetInput();
+		} else if (source == queryButton) {
+			// 调用查询图书的方法
+			queryBook();
+		} else if (source == clearButton) {
+			// 调用清空表格的方法
+			clearTable();
+		}
+	}
+
+	public void loginCheck() {
+		// 获取用户输入的用户名、密码和用户类型
+		String user = userField.getText();
+		String password = new String(passwordField.getPassword());
+		String type = (String) typeBox.getSelectedItem();
+
+		if (user.isEmpty() || password.isEmpty()) {
+
+			JOptionPane.showMessageDialog(this, "用户名或密码不能为空！", "警告", JOptionPane.WARNING_MESSAGE);
+			return;
+		}
+
+		String sql = "select * from userTable where userName = ? and passsWord = ? and userType = ?";
+		try {
+
+			pstmt = conn.prepareStatement(sql);
+			pstmt.setString(1, user);
+			pstmt.setString(2, password);
+			pstmt.setString(3, type);
+			rs = pstmt.executeQuery();
+			//Statement sta = conn.createStatement();
+			//ResultSet rs = sta.executeQuery(sql);
+			if (rs.next()) {
+
+				JOptionPane.showMessageDialog(this, "登录成功！", "信息", JOptionPane.INFORMATION_MESSAGE);
+
+				loginPanel.setVisible(false);
+				queryPanel.setVisible(true);
+				scrollPane.setVisible(true);
+			} else {
+
+				JOptionPane.showMessageDialog(this, "用户名或密码或用户类型错误！", "错误", JOptionPane.ERROR_MESSAGE);
+
+				resetInput();
+			}
+		} catch (Exception e) {
+			System.out.println(e.toString());
+			System.out.println("1");
+			JOptionPane.showMessageDialog(this, "数据库操作失败！", "错误", JOptionPane.ERROR_MESSAGE);
+		}
+	}
+
+	public void resetInput() {
+		userField.setText("");
+		passwordField.setText("");
+	}
+
+	public void queryBook() {
+		String ISBN = ISBNField.getText();
+		String bookName = bookNameField.getText();
+		String price = priceField.getText();
+		String publisher = publisherField.getText();
+
+		String sql = "select * from bookInformation where bookName like ? and price like ? and publisher like ?";
+		try {
+
+			pstmt = conn.prepareStatement(sql);
+
+			pstmt.setString(1, "%" + bookName + "%");
+			pstmt.setString(2, "%" + price + "%");
+			pstmt.setString(3, "%" + publisher + "%");
+
+			rs = pstmt.executeQuery();
+
+			Object[][] data = new Object[100][4];
+
+			int count = 0;
+
+			while (rs.next()) {
+				data[count][0] = rs.getString("ISBN");
+				data[count][1] = rs.getString("bookName");
+				data[count][2] = rs.getString("price");
+				data[count][3] = rs.getString("publisher");
+				//data[count][4] = rs.getString("bookPrice");
+				count++;
+			}
+
+			if (count == 0) {
+
+				JOptionPane.showMessageDialog(this, "没有查询到数据！", "信息", JOptionPane.INFORMATION_MESSAGE);
+
+				clearTable();
+				return;
+			}
+
+			Object[] columnNames = { "ISBN", "BookName", "publisher", "price" };
+
+			MyTableModel model = new MyTableModel(data, columnNames);
+
+			table.setModel(model);
+		} catch (Exception e) {
+			System.out.println(e.toString());
+			JOptionPane.showMessageDialog(this, "数据库操作失败！", "错误", JOptionPane.ERROR_MESSAGE);
+		}
+	}
+
+	public void clearTable() {
+
+		MyTableModel model = (MyTableModel) table.getModel();
+
+		// model.clearData();
+	}
+
+	class MyTableModel extends AbstractTableModel {
+
+		private Object[][] data;
+		private Object[] columnNames;
+
+		public MyTableModel(Object[][] data, Object[] columnNames) {
+			this.data = data;
+			this.columnNames = columnNames;
+		}
+
+		public int getRowCount() {
+			return data.length;
+		}
+
+		public int getColumnCount() {
+			return columnNames.length;
+		}
+
+		public Object getValueAt(int rowIndex, int columnIndex) {
+			return data[rowIndex][columnIndex];
+		}
+
+		public String getColumnName(int column) {
+			return (String) columnNames[column];
+		}
+
+		public void clearData() {
+			for (int i = 0; i < data.length; i++) {
+				for (int j = 0; j < data[i].length; j++) {
+					data[i][j] = null;
+				}
+			}
+
+			fireTableDataChanged();
+		}
+	}
+
+}
